@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>料金所ボイスロガー（実験版）</title>
+<style>
+  :root{
+    --ink:#1c2230;
+    --paper:#f4f2ec;
+    --line:#2c3444;
+    --accent:#2f6f5e;   /* 深い緑 - 高速道路の案内標識をイメージ */
+    --accent-dim:#e4ede9;
+    --warn:#b5482f;
+    --warn-dim:#f6e4de;
+    --muted:#6b7280;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",-apple-system,BlinkMacSystemFont,sans-serif;
+    -webkit-tap-highlight-color:transparent;}
+  body{padding:0 16px 40px;max-width:520px;margin:0 auto;}
+
+  header{padding:20px 0 12px;border-bottom:2px solid var(--line);margin-bottom:16px;}
+  header .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:700;}
+  header h1{font-size:20px;margin:4px 0 6px;letter-spacing:.02em;}
+  header p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0;}
+
+  .support-warning{background:var(--warn-dim);border:1px solid var(--warn);color:var(--warn);
+    padding:10px 12px;border-radius:6px;font-size:12.5px;line-height:1.6;margin-bottom:16px;display:none;}
+
+  .mode-toggle{display:flex;gap:8px;margin-bottom:16px;}
+  .mode-btn{flex:1;padding:12px 0;text-align:center;border:2px solid var(--line);border-radius:8px;
+    background:var(--card);font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;}
+  .mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  .stage{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 16px;
+    text-align:center;margin-bottom:16px;}
+  .status-label{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700;margin-bottom:10px;}
+  .status-text{font-size:16px;min-height:24px;margin-bottom:16px;line-height:1.5;}
+  .status-text .heard{color:var(--accent);font-weight:700;}
+
+  .mic-btn{width:104px;height:104px;border-radius:50%;border:none;background:var(--accent);
+    color:#fff;font-size:13px;font-weight:700;letter-spacing:.04em;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;margin:0 auto 6px;
+    box-shadow:0 4px 0 #1f5346;transition:transform .1s;}
+  .mic-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #1f5346;}
+  .mic-btn.listening{background:var(--warn);box-shadow:0 4px 0 #7d321e;animation:pulse 1.1s infinite;}
+  @keyframes pulse{0%{opacity:1;}50%{opacity:.72;}100%{opacity:1;}}
+  .mic-hint{font-size:11.5px;color:var(--muted);}
+
+  .confirm-row{display:flex;gap:10px;margin-top:14px;}
+  .confirm-row button{flex:1;padding:12px 0;border-radius:8px;border:2px solid var(--line);
+    font-size:15px;font-weight:700;cursor:pointer;background:var(--card);}
+  .confirm-row .ok{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .confirm-row .ng{background:var(--warn-dim);border-color:var(--warn);color:var(--warn);}
+  .confirm-row[hidden]{display:none;}
+
+  .debug{background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:12px 14px;
+    font-size:11.5px;color:var(--muted);margin-bottom:16px;line-height:1.7;}
+  .debug b{color:var(--ink);}
+  .debug .cand{display:flex;justify-content:space-between;border-top:1px solid #eee;padding:3px 0;}
+
+  .log-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .log-header h2{font-size:13px;letter-spacing:.06em;margin:0;}
+  .log-header span{font-size:11.5px;color:var(--muted);}
+  .log-list{display:flex;flex-direction:column;gap:6px;}
+  .log-item{background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;}
+  .log-item .tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:8px;}
+  .tag.in{background:var(--accent-dim);color:var(--accent);}
+  .tag.out{background:var(--warn-dim);color:var(--warn);}
+  .log-item .name{font-weight:700;}
+  .log-item .time{color:var(--muted);font-size:11.5px;}
+  .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:18px 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">TOLLGATE VOICE LOGGER — 実験プロトタイプ</div>
+  <h1>料金所ボイスロガー</h1>
+  <p>料金所名を読み上げると、東海・関東の料金所リストと照合して記録します。これは精度検証のための実験版です。</p>
+</header>
+
+<div id="supportWarning" class="support-warning">
+  この端末・ブラウザは音声認識（Web Speech API）に対応していないようです。iPhoneの場合はSafariで、https環境（GitHub Pagesなど）で開いてください。
+</div>
+
+<div class="mode-toggle">
+  <div class="mode-btn active" data-mode="in" id="modeIn">入口</div>
+  <div class="mode-btn" data-mode="out" id="modeOut">出口</div>
+</div>
+
+<div class="stage">
+  <div class="status-label">STATUS</div>
+  <div class="status-text" id="statusText">マイクをタップして料金所名を読み上げてください</div>
+
+  <button class="mic-btn" id="micBtn">
+    <span id="micBtnLabel">タップして<br>読み上げ</span>
+  </button>
+  <div class="mic-hint" id="micHint">1回タップで開始、自動的に聞き取ります</div>
+
+  <div class="confirm-row" id="confirmRow" hidden>
+    <button class="ok" id="btnOk">OK（これで記録）</button>
+    <button class="ng" id="btnNg">NG（言い直す）</button>
+  </div>
+</div>
+
+<div class="debug" id="debugPanel">
+  <div><b>認識文字列:</b> <span id="dbgRaw">-</span></div>
+  <div><b>最有力候補:</b> <span id="dbgTop">-</span></div>
+  <div id="dbgCandidates"></div>
+</div>
+
+<div class="log-header">
+  <h2>今回のセッション記録</h2>
+  <span id="logCount">0件</span>
+</div>
+<div class="log-list" id="logList">
+  <div class="empty">まだ記録がありません</div>
+</div>
+
+<script>
+/* ============ 料金所マスタ（東海3県・関東1都3県の主要ICのみ／サンプルデータ）============
+   ※ これは実験用の抜粋データです。本番運用時はNEXCO各社・首都高速の公式IC一覧で
+      網羅性を確認し、差し替え・追加してください。 */
+const TOLLGATE_MASTER = [
+  // 愛知県
+  {name:"豊川IC", pref:"愛知", route:"東名高速道路"},
+  {name:"音羽蒲郡IC", pref:"愛知", route:"東名高速道路"},
+  {name:"岡崎IC", pref:"愛知", route:"東名高速道路"},
+  {name:"豊田IC", pref:"愛知", route:"東名高速道路"},
+  {name:"名古屋IC", pref:"愛知", route:"東名高速道路"},
+  {name:"一宮IC", pref:"愛知", route:"東名高速道路"},
+  {name:"岡崎東IC", pref:"愛知", route:"新東名高速道路"},
+  {name:"新城IC", pref:"愛知", route:"新東名高速道路"},
+  {name:"豊明IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"大府IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"東海IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"弥富IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"飛島IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"湾岸弥富IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"豊田松平IC", pref:"愛知", route:"東海環状自動車道"},
+  {name:"豊田勘八IC", pref:"愛知", route:"東海環状自動車道"},
+  {name:"力石IC", pref:"愛知", route:"東海環状自動車道"},
+  {name:"一宮西IC", pref:"愛知", route:"東海北陸自動車道"},
+  {name:"小牧IC", pref:"愛知", route:"名神高速道路"},
+  {name:"名古屋西IC", pref:"愛知", route:"名神高速道路"},
+  // 岐阜県
+  {name:"美濃関IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"富加関IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"山県IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"岐阜三輪IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"岐阜各務原IC", pref:"岐阜", route:"東海北陸自動車道"},
+  {name:"美濃IC", pref:"岐阜", route:"東海北陸自動車道"},
+  {name:"郡上八幡IC", pref:"岐阜", route:"東海北陸自動車道"},
+  {name:"中津川IC", pref:"岐阜", route:"中央自動車道"},
+  {name:"恵那IC", pref:"岐阜", route:"中央自動車道"},
+  {name:"大垣IC", pref:"岐阜", route:"名神高速道路"},
+  // 三重県
+  {name:"桑名IC", pref:"三重", route:"東名阪自動車道"},
+  {name:"四日市IC", pref:"三重", route:"東名阪自動車道"},
+  {name:"鈴鹿IC", pref:"三重", route:"東名阪自動車道"},
+  {name:"亀山IC", pref:"三重", route:"東名阪自動車道"},
+  {name:"亀山JCT", pref:"三重", route:"新名神高速道路"},
+  {name:"菰野IC", pref:"三重", route:"新名神高速道路"},
+  {name:"伊勢西IC", pref:"三重", route:"伊勢自動車道"},
+  {name:"伊勢IC", pref:"三重", route:"伊勢自動車道"},
+  {name:"玉城IC", pref:"三重", route:"伊勢自動車道"},
+  {name:"勢和多気IC", pref:"三重", route:"伊勢自動車道"},
+  // 東京都
+  {name:"高井戸IC", pref:"東京", route:"中央自動車道"},
+  {name:"調布IC", pref:"東京", route:"中央自動車道"},
+  {name:"国立府中IC", pref:"東京", route:"中央自動車道"},
+  {name:"八王子IC", pref:"東京", route:"中央自動車道"},
+  {name:"八王子JCT", pref:"東京", route:"圏央道"},
+  {name:"あきる野IC", pref:"東京", route:"圏央道"},
+  {name:"日の出IC", pref:"東京", route:"圏央道"},
+  // 神奈川県
+  {name:"横浜町田IC", pref:"神奈川", route:"東名高速道路"},
+  {name:"綾瀬スマートIC", pref:"神奈川", route:"東名高速道路"},
+  {name:"厚木IC", pref:"神奈川", route:"東名高速道路"},
+  {name:"秦野中井IC", pref:"神奈川", route:"東名高速道路"},
+  {name:"大井松田IC", pref:"神奈川", route:"東名高速道路"},
+  {name:"厚木南IC", pref:"神奈川", route:"新東名高速道路"},
+  {name:"伊勢原JCT", pref:"神奈川", route:"新東名高速道路"},
+  {name:"相模原愛川IC", pref:"神奈川", route:"圏央道"},
+  {name:"高尾山IC", pref:"神奈川", route:"圏央道"},
+  {name:"城山IC", pref:"神奈川", route:"圏央道"},
+  // 埼玉県
+  {name:"所沢IC", pref:"埼玉", route:"関越自動車道"},
+  {name:"川越IC", pref:"埼玉", route:"関越自動車道"},
+  {name:"鶴ヶ島IC", pref:"埼玉", route:"関越自動車道"},
+  {name:"東松山IC", pref:"埼玉", route:"関越自動車道"},
+  {name:"花園IC", pref:"埼玉", route:"関越自動車道"},
+  {name:"狭山日高IC", pref:"埼玉", route:"圏央道"},
+  {name:"川島IC", pref:"埼玉", route:"圏央道"},
+  {name:"桶川北本IC", pref:"埼玉", route:"圏央道"},
+  {name:"白岡菖蒲IC", pref:"埼玉", route:"圏央道"},
+  {name:"浦和IC", pref:"埼玉", route:"東北自動車道"},
+  {name:"岩槻IC", pref:"埼玉", route:"東北自動車道"},
+  {name:"久喜IC", pref:"埼玉", route:"東北自動車道"},
+  // 千葉県
+  {name:"市川IC", pref:"千葉", route:"東関東自動車道"},
+  {name:"湾岸市川IC", pref:"千葉", route:"東関東自動車道"},
+  {name:"千葉北IC", pref:"千葉", route:"東関東自動車道"},
+  {name:"佐倉IC", pref:"千葉", route:"東関東自動車道"},
+  {name:"富里IC", pref:"千葉", route:"東関東自動車道"},
+  {name:"成田IC", pref:"千葉", route:"東関東自動車道"},
+  {name:"篠崎IC", pref:"千葉", route:"京葉道路"},
+  {name:"花輪IC", pref:"千葉", route:"京葉道路"},
+  {name:"貝塚IC", pref:"千葉", route:"京葉道路"},
+  {name:"蘇我IC", pref:"千葉", route:"京葉道路"},
+  {name:"市原IC", pref:"千葉", route:"館山自動車道"},
+  {name:"姉崎袖ケ浦IC", pref:"千葉", route:"館山自動車道"},
+  {name:"木更津南IC", pref:"千葉", route:"館山自動車道"},
+  {name:"木更津JCT", pref:"千葉", route:"圏央道"},
+  {name:"東金JCT", pref:"千葉", route:"圏央道"},
+];
+
+/* ============ ファジーマッチング ============ */
+function normalize(s){
+  return s
+    .replace(/\s+/g,"")
+    .replace(/インターチェンジ/g,"IC")
+    .replace(/インター/g,"IC")
+    .replace(/ジャンクション/g,"JCT")
+    .replace(/料金所/g,"")
+    .replace(/IC$/,"")
+    .replace(/JCT$/,"")
+    .replace(/[ケヶが]/g,"ケ")
+    .toLowerCase();
+}
+
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++)dp[i][0]=i;
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cost = a[i-1]===b[j-1] ? 0 : 1;
+      dp[i][j]=Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function similarity(a,b){
+  const na=normalize(a), nb=normalize(b);
+  if(na.length===0 || nb.length===0) return 0;
+  if(na===nb) return 1;
+  let bonus = 0;
+  if(na.includes(nb) || nb.includes(na)) bonus = 0.15;
+  const dist = levenshtein(na,nb);
+  const maxLen = Math.max(na.length, nb.length);
+  const base = 1 - dist/maxLen;
+  return Math.min(1, base + bonus);
+}
+
+function findCandidates(heard){
+  return TOLLGATE_MASTER
+    .map(t => ({ ...t, score: similarity(heard, t.name.replace(/IC$|JCT$/,"")) }))
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,4);
+}
+
+/* ============ 状態管理 ============ */
+let mode = "in";
+let recognition = null;
+let recognizing = false;
+let phase = "idle"; // idle | listening_name | confirming | listening_confirm
+let currentTop = null;
+const sessionLog = [];
+
+const el = {
+  statusText: document.getElementById("statusText"),
+  micBtn: document.getElementById("micBtn"),
+  micBtnLabel: document.getElementById("micBtnLabel"),
+  micHint: document.getElementById("micHint"),
+  confirmRow: document.getElementById("confirmRow"),
+  btnOk: document.getElementById("btnOk"),
+  btnNg: document.getElementById("btnNg"),
+  dbgRaw: document.getElementById("dbgRaw"),
+  dbgTop: document.getElementById("dbgTop"),
+  dbgCandidates: document.getElementById("dbgCandidates"),
+  logList: document.getElementById("logList"),
+  logCount: document.getElementById("logCount"),
+  supportWarning: document.getElementById("supportWarning"),
+  modeIn: document.getElementById("modeIn"),
+  modeOut: document.getElementById("modeOut"),
+};
+
+el.modeIn.addEventListener("click", ()=>setMode("in"));
+el.modeOut.addEventListener("click", ()=>setMode("out"));
+function setMode(m){
+  mode = m;
+  el.modeIn.classList.toggle("active", m==="in");
+  el.modeOut.classList.toggle("active", m==="out");
+}
+
+function speak(text){
+  return new Promise(resolve=>{
+    if(!window.speechSynthesis){ resolve(); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "ja-JP";
+    u.rate = 1.02;
+    u.onend = ()=>resolve();
+    u.onerror = ()=>resolve();
+    window.speechSynthesis.speak(u);
+  });
+}
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(!SR){
+  el.supportWarning.style.display = "block";
+  el.micBtn.disabled = true;
+} 
+
+function startRecognition(onResult, onFail){
+  if(!SR) return;
+  recognition = new SR();
+  recognition.lang = "ja-JP";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 3;
+  recognizing = true;
+  el.micBtn.classList.add("listening");
+
+  recognition.onresult = (e)=>{
+    const text = e.results[0][0].transcript;
+    onResult(text);
+  };
+  recognition.onerror = (e)=>{
+    recognizing = false;
+    el.micBtn.classList.remove("listening");
+    onFail && onFail(e.error);
+  };
+  recognition.onend = ()=>{
+    recognizing = false;
+    el.micBtn.classList.remove("listening");
+  };
+  recognition.start();
+}
+
+el.micBtn.addEventListener("click", ()=>{
+  if(recognizing) return;
+  if(phase === "idle" || phase === "confirming"){
+    beginListenName();
+  }
+});
+
+function beginListenName(){
+  phase = "listening_name";
+  el.confirmRow.hidden = true;
+  el.statusText.textContent = "聞いています…料金所名を読み上げてください";
+  el.micBtnLabel.innerHTML = "聞き取り中";
+  el.micHint.textContent = "はっきり発音してください";
+
+  startRecognition(
+    (text)=>{
+      el.dbgRaw.textContent = text;
+      const candidates = findCandidates(text);
+      currentTop = candidates[0];
+      renderDebug(candidates);
+
+      if(!currentTop || currentTop.score < 0.35){
+        el.statusText.innerHTML = `聞き取れましたが、候補が見つかりませんでした：<span class="heard">「${text}」</span><br>もう一度お試しください`;
+        resetMicButton();
+        phase = "idle";
+        return;
+      }
+      askConfirm(currentTop, text);
+    },
+    (err)=>{
+      el.statusText.textContent = `認識エラー（${err}）。もう一度タップしてください`;
+      resetMicButton();
+      phase = "idle";
+    }
+  );
+}
+
+async function askConfirm(top, heardText){
+  phase = "confirming";
+  el.statusText.innerHTML = `<span class="heard">「${top.name}」</span>でよろしいですか？`;
+  resetMicButton();
+  el.confirmRow.hidden = false;
+  await speak(`${top.name.replace(/IC$|JCT$/,"")}でよろしいですか？`);
+}
+
+el.btnOk.addEventListener("click", ()=>confirmYes());
+el.btnNg.addEventListener("click", ()=>confirmNo());
+
+function confirmYes(){
+  if(!currentTop) return;
+  addLogEntry(currentTop.name, mode);
+  el.confirmRow.hidden = true;
+  el.statusText.innerHTML = `記録しました：<span class="heard">${currentTop.name}</span>`;
+  phase = "idle";
+  speak("記録しました");
+  currentTop = null;
+}
+
+function confirmNo(){
+  el.confirmRow.hidden = true;
+  el.statusText.textContent = "もう一度、マイクをタップして読み上げてください";
+  phase = "idle";
+  currentTop = null;
+}
+
+function resetMicButton(){
+  el.micBtnLabel.innerHTML = "タップして<br>読み上げ";
+  el.micHint.textContent = "1回タップで開始、自動的に聞き取ります";
+}
+
+function renderDebug(candidates){
+  el.dbgTop.textContent = candidates[0] ? `${candidates[0].name}（score: ${candidates[0].score.toFixed(2)}）` : "-";
+  el.dbgCandidates.innerHTML = candidates.map(c=>
+    `<div class="cand"><span>${c.name} (${c.pref}/${c.route})</span><span>${c.score.toFixed(2)}</span></div>`
+  ).join("");
+}
+
+function addLogEntry(name, m){
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  sessionLog.unshift({name, mode:m, time:timeStr});
+  renderLog();
+}
+
+function renderLog(){
+  el.logCount.textContent = `${sessionLog.length}件`;
+  if(sessionLog.length===0){
+    el.logList.innerHTML = `<div class="empty">まだ記録がありません</div>`;
+    return;
+  }
+  el.logList.innerHTML = sessionLog.map(item=>`
+    <div class="log-item">
+      <div><span class="tag ${item.mode==='in'?'in':'out'}">${item.mode==='in'?'入口':'出口'}</span><span class="name">${item.name}</span></div>
+      <div class="time">${item.time}</div>
+    </div>
+  `).join("");
+}
+</script>
+</body>
+</html>
