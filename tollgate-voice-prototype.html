@@ -267,6 +267,42 @@ function findCandidates(heard){
     .slice(0,4);
 }
 
+/* 実機テストで見つかった「読みは合っているが違う漢字」などの誤変換を、
+   ここに追記していくことで精度を積み上げていく。
+   キー: 音声認識が実際に返した文字列 → 値: 正しいIC名（TOLLGATE_MASTER内のnameと一致させる） */
+const MISRECOGNITION_ALIASES = {
+  "清和滝": "勢和多気IC",
+  "せいわたき": "勢和多気IC",
+};
+
+function applyAliases(text){
+  const normalized = text.replace(/\s+/g,"");
+  return MISRECOGNITION_ALIASES[normalized] || null;
+}
+
+/* 音声認識の複数候補（alternatives）すべてに対してマッチングを行い、
+   最もスコアの高い組み合わせを採用する */
+function findBestAcrossAlternatives(alternativeTexts){
+  // まずエイリアス辞書に完全一致するものがあれば最優先
+  for(const text of alternativeTexts){
+    const aliasHit = applyAliases(text);
+    if(aliasHit){
+      const master = TOLLGATE_MASTER.find(t=>t.name===aliasHit);
+      if(master) return { heardText: text, candidates: [{...master, score:1.0}], viaAlias:true };
+    }
+  }
+  // なければ全alternativeに対して通常のファジーマッチングを行い、
+  // トップ候補のスコアが一番高かったものを採用
+  let best = null;
+  for(const text of alternativeTexts){
+    const candidates = findCandidates(text);
+    if(candidates[0] && (!best || candidates[0].score > best.candidates[0].score)){
+      best = { heardText: text, candidates, viaAlias:false };
+    }
+  }
+  return best;
+}
+
 /* ============ 状態管理 ============ */
 let mode = "in";
 let recognition = null;
@@ -329,8 +365,11 @@ function startRecognition(onResult, onFail){
   el.micBtn.classList.add("listening");
 
   recognition.onresult = (e)=>{
-    const text = e.results[0][0].transcript;
-    onResult(text);
+    const alternatives = [];
+    for(let i=0;i<e.results[0].length;i++){
+      alternatives.push(e.results[0][i].transcript);
+    }
+    onResult(alternatives);
   };
   recognition.onerror = (e)=>{
     recognizing = false;
@@ -359,9 +398,11 @@ function beginListenName(){
   el.micHint.textContent = "はっきり発音してください";
 
   startRecognition(
-    (text)=>{
-      el.dbgRaw.textContent = text;
-      const candidates = findCandidates(text);
+    (alternatives)=>{
+      const result = findBestAcrossAlternatives(alternatives);
+      const text = result ? result.heardText : alternatives[0];
+      el.dbgRaw.textContent = alternatives.join(" / ");
+      const candidates = result ? result.candidates : [];
       currentTop = candidates[0];
       renderDebug(candidates);
 
