@@ -944,8 +944,11 @@ function beginListenName(){
   );
 }
 
+let currentHeardText = null;
+
 function askConfirm(top, heardText){
   phase = "confirming";
+  currentHeardText = heardText;
   el.statusText.innerHTML = `<span class="heard">「${top.name}」</span>でよろしいですか？`;
   resetMicButton();
   el.confirmRow.hidden = false;
@@ -961,10 +964,13 @@ el.btnNg.addEventListener("click", ()=>confirmNo());
 function confirmYes(){
   if(!currentTop) return;
   const wasMode = mode;
-  const entry = addLogEntry(currentTop.name, wasMode);
+  const entry = addLogEntry(currentTop.name, wasMode, {
+    route: currentTop.route, pref: currentTop.pref, rawText: currentHeardText
+  });
   el.confirmRow.hidden = true;
   el.statusText.innerHTML = `記録しました：<span class="heard">${currentTop.name}</span>`;
   currentTop = null;
+  currentHeardText = null;
   advanceTripState();
   if(wasMode === "out"){
     // 出口が記録できた＝一往復分そろったタイミングでのみ送信確認を行う
@@ -1000,10 +1006,10 @@ function resetMicButton(){
 }
 
 /* ============ 送信確認フロー ============
-   ※ 送信先（SEND_ENDPOINT）は未確定です。後で実際のエンドポイント
-      （Supabase Edge Function や Google Apps Script のURLなど）を
-      設定すれば、そのままデータ送信が有効になります。 */
-const SEND_ENDPOINT = ""; // 例: "https://xxxx.supabase.co/functions/v1/tollgate-log"
+   Supabase（JACKと同じプロジェクトに間借り）の tollgate_events テーブルへ送信する。 */
+const SUPABASE_URL = "https://pwgufjhagswrvomvqidd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_V0i3vArrvg2VqB3KQ_DT1Q_Hx8HAVA_";
+const SEND_ENDPOINT = SUPABASE_URL ? `${SUPABASE_URL}/rest/v1/tollgate_events` : "";
 
 function askSendConfirm(entry){
   phase = "asking_send";
@@ -1043,10 +1049,23 @@ async function doSend(){
   try{
     const res = await fetch(SEND_ENDPOINT, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: {
+        "Content-Type":"application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Prefer": "return=minimal"
+      },
       body: JSON.stringify({
-        name: entry.name, mode: entry.mode, time: entry.time,
-        needsReview: entry.needsReview
+        vehicle_number: entry.vehicleNumber || null,
+        driver_name: entry.driverName || null,
+        direction: entry.mode,                 // 'in' または 'out'
+        tollgate_name: entry.name,
+        route: entry.route || null,
+        pref: entry.pref || null,
+        recognized_raw_text: entry.rawText || entry.name,
+        needs_review: !!entry.needsReview,
+        recorded_at: entry.recordedAt,
+        session_id: getSessionId(),
       })
     });
     entry.sendStatus = res.ok ? "sent" : "failed";
@@ -1078,10 +1097,18 @@ function renderDebug(candidates){
 }
 
 function addLogEntry(name, m, opts){
-  const needsReview = opts && opts.needsReview;
+  opts = opts || {};
   const now = new Date();
   const timeStr = now.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  const entry = {name, mode:m, time:timeStr, needsReview: !!needsReview, sendStatus:"unsent"};
+  const entry = {
+    name, mode:m, time:timeStr,
+    needsReview: !!opts.needsReview,
+    sendStatus: "unsent",
+    route: opts.route || null,
+    pref: opts.pref || null,
+    rawText: opts.rawText || name,
+    recordedAt: now.toISOString(),
+  };
   sessionLog.unshift(entry);
   renderLog();
   saveSession();
@@ -1117,10 +1144,18 @@ function renderLog(){
 /* ============ セッションの保存・復元（localStorage） ============
    長時間の運転でブラウザがバックグラウンド化・再読み込みされても、
    記録内容（ログ・入口/出口の状態）を次回起動時に復元する。 */
+let sessionId = null;
+function getSessionId(){
+  if(!sessionId){
+    sessionId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  }
+  return sessionId;
+}
+
 function saveSession(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      sessionLog, mode, tripState, savedAt: Date.now()
+      sessionLog, mode, tripState, sessionId: getSessionId(), savedAt: Date.now()
     }));
   }catch(e){ /* ストレージが使えない環境では無視 */ }
 }
@@ -1133,6 +1168,7 @@ function loadSession(){
     if(Array.isArray(data.sessionLog)) sessionLog = data.sessionLog;
     if(data.mode) mode = data.mode;
     if("tripState" in data) tripState = data.tripState;
+    if(data.sessionId) sessionId = data.sessionId;
   }catch(e){ /* 壊れたデータは無視して新規セッションとして開始 */ }
 }
 
@@ -1140,6 +1176,7 @@ function clearSession(){
   sessionLog = [];
   mode = "in";
   tripState = null;
+  sessionId = null; // 次回の記録から新しいセッションIDを発行する
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
   setMode("in");
   renderLog();
