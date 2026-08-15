@@ -126,6 +126,7 @@
 <div class="log-list" id="logList">
   <div class="empty">まだ記録がありません</div>
 </div>
+<button id="clearBtn" style="margin-top:12px;width:100%;padding:10px 0;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#6b7280;font-size:12.5px;">セッションをクリア（新しい記録を開始）</button>
 
 <script>
 /* ============ 料金所マスタ（東海3県・関東1都3県の主要ICのみ／サンプルデータ）============
@@ -734,12 +735,14 @@ function findBestAcrossAlternatives(alternativeTexts){
 }
 
 /* ============ 状態管理 ============ */
+const STORAGE_KEY = "tollgate_voice_logger_session_v1";
 let mode = "in";
+let tripState = null; // null: 次は入口を期待 / "in": 入口記録済み、次は出口を期待
 let recognition = null;
 let recognizing = false;
-let phase = "idle"; // idle | listening_name | confirming | listening_confirm
+let phase = "idle"; // idle | listening_name | confirming | asking_send
 let currentTop = null;
-const sessionLog = [];
+let sessionLog = [];
 
 const el = {
   statusText: document.getElementById("statusText"),
@@ -762,12 +765,18 @@ const el = {
   modeOut: document.getElementById("modeOut"),
 };
 
-el.modeIn.addEventListener("click", ()=>setMode("in"));
-el.modeOut.addEventListener("click", ()=>setMode("out"));
-function setMode(m){
+el.modeIn.addEventListener("click", ()=>setMode("in", {manual:true}));
+el.modeOut.addEventListener("click", ()=>setMode("out", {manual:true}));
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  if(confirm("今回のセッション記録を削除して、新しく記録を始めますか？")){
+    clearSession();
+  }
+});
+function setMode(m, opts){
   mode = m;
   el.modeIn.classList.toggle("active", m==="in");
   el.modeOut.classList.toggle("active", m==="out");
+  saveSession();
 }
 
 function speak(text){
@@ -818,9 +827,14 @@ function startRecognition(onResult, onFail){
 
 el.micBtn.addEventListener("click", ()=>{
   if(recognizing) return;
-  if(phase === "idle" || phase === "confirming"){
-    beginListenName();
+  if(phase !== "idle" && phase !== "confirming") return;
+
+  if(mode === "out" && tripState !== "in"){
+    el.statusText.innerHTML = `先に<span class="heard">入口</span>を記録してください（出口だけの記録は防止しています）`;
+    speak("先に入口を記録してください");
+    return;
   }
+  beginListenName();
 });
 
 function beginListenName(){
@@ -846,6 +860,7 @@ function beginListenName(){
         el.statusText.innerHTML = `候補が見つからないため生データのまま記録しました：<span class="heard">「${text}」</span>（要確認）`;
         resetMicButton();
         currentTop = null;
+        advanceTripState();
         askSendConfirm(entry);
         return;
       }
@@ -876,7 +891,20 @@ function confirmYes(){
   el.confirmRow.hidden = true;
   el.statusText.innerHTML = `記録しました：<span class="heard">${currentTop.name}</span>`;
   currentTop = null;
+  advanceTripState();
   askSendConfirm(entry);
+}
+
+/* 記録が完了するたびに呼ぶ：入口を記録したら次は出口に、
+   出口を記録したら次は入口に自動的に切り替える */
+function advanceTripState(){
+  if(mode === "in"){
+    tripState = "in";
+    setMode("out");
+  } else {
+    tripState = null;
+    setMode("in");
+  }
 }
 
 function confirmNo(){
@@ -897,13 +925,16 @@ function resetMicButton(){
       設定すれば、そのままデータ送信が有効になります。 */
 const SEND_ENDPOINT = ""; // 例: "https://xxxx.supabase.co/functions/v1/tollgate-log"
 
-async function askSendConfirm(entry){
+function askSendConfirm(entry){
   phase = "asking_send";
   el.confirmRow.hidden = true;
   el.sendRow.hidden = false;
   el.statusText.innerHTML = `<span class="heard">${entry.name}</span>を記録しました。データを送信しますか？`;
-  await speak("データを送信しますか？");
+  // 直前のボタンタップ（ユーザー操作）から間を置かずに聞き取りを開始する。
+  // await speak(...) を先に行うと、iOSでは「ユーザー操作直後」という条件が
+  // 崩れてマイクが起動しなくなることがあるため、読み上げは並行して行う。
   listenForSendAnswer();
+  speak("データを送信しますか？");
 }
 
 function listenForSendAnswer(){
@@ -938,6 +969,7 @@ async function doSend(){
     // 送信先が未設定の間は、送信済みとして扱いローカルに留める
     entry.sendStatus = "sent_local";
     renderLog();
+    saveSession();
     el.statusText.innerHTML = `送信しました（送信先が未設定のため、現在はローカル記録のみです）`;
     await speak("送信しました");
     phase = "idle";
@@ -960,6 +992,7 @@ async function doSend(){
     entry.sendStatus = "failed";
   }
   renderLog();
+  saveSession();
   el.statusText.innerHTML = entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました（後で再送してください）";
   await speak(entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました");
   phase = "idle";
@@ -970,6 +1003,7 @@ function doNotSend(){
   el.sendRow.hidden = true;
   if(entry) entry.sendStatus = "not_sent";
   renderLog();
+  saveSession();
   el.statusText.textContent = "送信しませんでした。次の料金所をどうぞ";
   phase = "idle";
 }
@@ -988,6 +1022,7 @@ function addLogEntry(name, m, opts){
   const entry = {name, mode:m, time:timeStr, needsReview: !!needsReview, sendStatus:"unsent"};
   sessionLog.unshift(entry);
   renderLog();
+  saveSession();
   return entry;
 }
 
@@ -1015,6 +1050,45 @@ function renderLog(){
       <div class="time">${item.time}</div>
     </div>
   `).join("");
+}
+
+/* ============ セッションの保存・復元（localStorage） ============
+   長時間の運転でブラウザがバックグラウンド化・再読み込みされても、
+   記録内容（ログ・入口/出口の状態）を次回起動時に復元する。 */
+function saveSession(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      sessionLog, mode, tripState, savedAt: Date.now()
+    }));
+  }catch(e){ /* ストレージが使えない環境では無視 */ }
+}
+
+function loadSession(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(Array.isArray(data.sessionLog)) sessionLog = data.sessionLog;
+    if(data.mode) mode = data.mode;
+    if("tripState" in data) tripState = data.tripState;
+  }catch(e){ /* 壊れたデータは無視して新規セッションとして開始 */ }
+}
+
+function clearSession(){
+  sessionLog = [];
+  mode = "in";
+  tripState = null;
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  setMode("in");
+  renderLog();
+}
+
+// 起動時にセッションを復元
+loadSession();
+setMode(mode);
+renderLog();
+if(sessionLog.length > 0){
+  el.statusText.innerHTML = `前回のセッションを復元しました（${sessionLog.length}件）`;
 }
 </script>
 </body>
