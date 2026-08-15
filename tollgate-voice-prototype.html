@@ -74,6 +74,25 @@
   .log-item .name{font-weight:700;}
   .log-item .time{color:var(--muted);font-size:11.5px;}
   .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:18px 0;}
+
+  .driver-bar{display:flex;justify-content:space-between;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:8px 12px;margin-bottom:14px;font-size:12.5px;}
+  .driver-bar .name{font-weight:700;}
+  .driver-bar button{border:none;background:none;color:var(--accent);font-size:12px;
+    font-weight:700;cursor:pointer;padding:4px 6px;}
+
+  .overlay{position:fixed;inset:0;background:rgba(28,34,48,.55);
+    display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .overlay[hidden]{display:none;}
+  .overlay-card{background:var(--paper);border-radius:12px;padding:22px 20px;
+    max-width:420px;width:100%;max-height:80vh;overflow-y:auto;}
+  .overlay-card h2{font-size:16px;margin:0 0 6px;}
+  .overlay-card p{font-size:12.5px;color:var(--muted);margin:0 0 16px;line-height:1.6;}
+  .driver-list{display:flex;flex-direction:column;gap:8px;}
+  .driver-list button{padding:12px 14px;border-radius:8px;border:2px solid var(--line);
+    background:var(--card);font-size:14px;font-weight:700;text-align:left;cursor:pointer;}
+  .driver-list button:active{background:var(--accent-dim);}
 </style>
 </head>
 <body>
@@ -83,6 +102,21 @@
   <h1>料金所ボイスロガー</h1>
   <p>料金所名を読み上げると、東海・関東の料金所リストと照合して記録します。これは精度検証のための実験版です。</p>
 </header>
+
+<div class="driver-bar" id="driverBar" hidden>
+  <span>運転者: <span class="name" id="driverBarName">-</span></span>
+  <button id="driverChangeBtn">変更</button>
+</div>
+
+<div class="overlay" id="driverOverlay" hidden>
+  <div class="overlay-card">
+    <h2>運転者を選択してください</h2>
+    <p>最初に一度選ぶと、次回以降は自動的に記憶されます（あとから「変更」で選び直せます）。</p>
+    <div class="driver-list" id="driverList">
+      <div class="empty">読み込み中…</div>
+    </div>
+  </div>
+</div>
 
 <div id="supportWarning" class="support-warning">
   この端末・ブラウザは音声認識（Web Speech API）に対応していないようです。iPhoneの場合はSafariで、https環境（GitHub Pagesなど）で開いてください。
@@ -761,6 +795,11 @@ const el = {
   logList: document.getElementById("logList"),
   logCount: document.getElementById("logCount"),
   supportWarning: document.getElementById("supportWarning"),
+  driverBar: document.getElementById("driverBar"),
+  driverBarName: document.getElementById("driverBarName"),
+  driverChangeBtn: document.getElementById("driverChangeBtn"),
+  driverOverlay: document.getElementById("driverOverlay"),
+  driverList: document.getElementById("driverList"),
   modeIn: document.getElementById("modeIn"),
   modeOut: document.getElementById("modeOut"),
 };
@@ -794,7 +833,7 @@ function setMode(m, opts){
 const TTS_READING_OVERRIDES = {
   "呼続": "よびつぎ",
   "黄金": "こがね",
-  "東新町": "ひがししんちょう",
+  "東新町": "とうしんちょう",
 };
 function applyTtsReading(text){
   let result = text;
@@ -932,6 +971,7 @@ function beginListenName(){
           askSendConfirm(entry);
         } else {
           phase = "idle";
+          silentSend(entry); // 入口は確認せず、記録した瞬間に裏側で送信する
         }
         return;
       }
@@ -979,6 +1019,7 @@ function confirmYes(){
   } else {
     phase = "idle";
     speak("入口を記録しました");
+    silentSend(entry); // 入口は確認せず、記録した瞬間に裏側で送信する
   }
 }
 
@@ -1029,22 +1070,15 @@ function askSendConfirm(entry){
 el.btnSendYes.addEventListener("click", ()=>doSend());
 el.btnSendNo.addEventListener("click", ()=>doNotSend());
 
-async function doSend(){
-  const entry = sessionLog[0];
-  el.sendRow.hidden = true;
-  if(!entry){ phase = "idle"; return; }
-
+/* Supabaseへの実際の送信処理（本体）。成功/失敗をentry.sendStatusに反映する。
+   UI操作（ボタン非表示など）や音声フィードバックは呼び出し元（doSend/silentSend）で行う。 */
+async function sendEntryToSupabase(entry){
   if(!SEND_ENDPOINT){
-    // 送信先が未設定の間は、送信済みとして扱いローカルに留める
     entry.sendStatus = "sent_local";
     renderLog();
     saveSession();
-    el.statusText.innerHTML = `送信しました（送信先が未設定のため、現在はローカル記録のみです）`;
-    await speak("送信しました");
-    phase = "idle";
-    return;
+    return true;
   }
-
   entry.sendStatus = "sending";
   renderLog();
   try{
@@ -1058,8 +1092,8 @@ async function doSend(){
         "Prefer": "return=minimal"
       },
       body: JSON.stringify({
-        vehicle_number: entry.vehicleNumber || null,
-        driver_name: entry.driverName || null,
+        driver_name: currentDriver ? currentDriver.driver_name : null,
+        etc_card_number: currentDriver ? currentDriver.etc_card_number : null,
         direction: entry.mode,                 // 'in' または 'out'
         tollgate_name: entry.name,
         route: entry.route || null,
@@ -1074,20 +1108,41 @@ async function doSend(){
     if(!res.ok){
       const bodyText = await res.text().catch(()=>"(本文取得失敗)");
       entry.sendError = `HTTP ${res.status}: ${bodyText}`;
-      el.dbgRaw.textContent = entry.sendError; // デバッグパネルに詳細を表示
     }
   }catch(e){
     entry.sendStatus = "failed";
     entry.sendError = `通信エラー: ${e.message}`;
-    el.dbgRaw.textContent = entry.sendError;
   }
   renderLog();
   saveSession();
-  el.statusText.innerHTML = entry.sendStatus === "sent"
-    ? "送信しました"
+  return entry.sendStatus === "sent" || entry.sendStatus === "sent_local";
+}
+
+/* 出口記録時：ユーザーに確認してから送信する（音声・ボタンでの対話あり） */
+async function doSend(){
+  const entry = sessionLog[0];
+  el.sendRow.hidden = true;
+  if(!entry){ phase = "idle"; return; }
+
+  const ok = await sendEntryToSupabase(entry);
+  if(!ok && entry.sendError){
+    el.dbgRaw.textContent = entry.sendError; // デバッグパネルに詳細を表示
+  }
+  el.statusText.innerHTML = ok
+    ? (entry.sendStatus === "sent_local" ? "送信しました（送信先が未設定のため、現在はローカル記録のみです）" : "送信しました")
     : `送信に失敗しました（詳細:下のデバッグ欄参照）`;
-  await speak(entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました");
+  await speak(ok ? "送信しました" : "送信に失敗しました");
   phase = "idle";
+}
+
+/* 入口記録時：ユーザーに確認せず、記録直後に裏側で送信する */
+async function silentSend(entry){
+  const ok = await sendEntryToSupabase(entry);
+  if(!ok && entry.sendError){
+    // 失敗しても運転の邪魔をしないよう、声や確認は出さない。
+    // ステータスバッジ（送信失敗）で後から気づける状態にしておく。
+    console.warn("入口データの送信に失敗:", entry.sendError);
+  }
 }
 
 function doNotSend(){
@@ -1193,12 +1248,82 @@ function clearSession(){
   renderLog();
 }
 
+/* ============ 運転者の選択・キャッシュ ============
+   初回起動時にJACKの担当者一覧（drivers）から選ばせ、
+   選んだ運転者名とETCカード番号をlocalStorageに記憶しておく。 */
+const DRIVER_STORAGE_KEY = "tollgate_voice_logger_driver_v1";
+let currentDriver = null; // { driver_name, etc_card_number }
+
+function loadDriverCache(){
+  try{
+    const raw = localStorage.getItem(DRIVER_STORAGE_KEY);
+    if(raw) currentDriver = JSON.parse(raw);
+  }catch(e){ currentDriver = null; }
+}
+
+function saveDriverCache(driver){
+  currentDriver = driver;
+  try{ localStorage.setItem(DRIVER_STORAGE_KEY, JSON.stringify(driver)); }catch(e){}
+  updateDriverBar();
+}
+
+function updateDriverBar(){
+  if(currentDriver && currentDriver.driver_name){
+    el.driverBar.hidden = false;
+    el.driverBarName.textContent = currentDriver.driver_name;
+  } else {
+    el.driverBar.hidden = true;
+  }
+}
+
+async function fetchDriverList(){
+  if(!SUPABASE_URL){ return []; }
+  try{
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/drivers?select=driver_name,etc_card_number&order=driver_name.asc`,
+      { headers: { "apikey": SUPABASE_ANON_KEY } }
+    );
+    if(!res.ok) return [];
+    return await res.json();
+  }catch(e){ return []; }
+}
+
+async function openDriverSelect(){
+  el.driverOverlay.hidden = false;
+  el.driverList.innerHTML = `<div class="empty">読み込み中…</div>`;
+  const drivers = await fetchDriverList();
+  if(drivers.length === 0){
+    el.driverList.innerHTML = `<div class="empty">運転者一覧を取得できませんでした。<br>通信環境を確認するか、後で「変更」からやり直してください。</div>`;
+    return;
+  }
+  el.driverList.innerHTML = "";
+  drivers.forEach(d=>{
+    const btn = document.createElement("button");
+    btn.textContent = d.driver_name;
+    btn.addEventListener("click", ()=>{
+      saveDriverCache(d);
+      el.driverOverlay.hidden = true;
+    });
+    el.driverList.appendChild(btn);
+  });
+}
+
+el.driverChangeBtn.addEventListener("click", ()=> openDriverSelect());
+
 // 起動時にセッションを復元
 loadSession();
 setMode(mode);
 renderLog();
 if(sessionLog.length > 0){
   el.statusText.innerHTML = `前回のセッションを復元しました（${sessionLog.length}件）`;
+}
+
+// 起動時に運転者のキャッシュを確認。なければ選択画面を出す
+loadDriverCache();
+if(currentDriver){
+  updateDriverBar();
+} else {
+  openDriverSelect();
 }
 </script>
 </body>
