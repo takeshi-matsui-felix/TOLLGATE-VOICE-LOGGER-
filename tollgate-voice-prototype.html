@@ -139,7 +139,7 @@ const TOLLGATE_MASTER = [
   {name:"豊明IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"大府IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"東海IC", pref:"愛知", route:"伊勢湾岸自動車道"},
-  {name:"弥富IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"弥富IC", pref:"愛知", route:"東名阪自動車道"},
   {name:"飛島IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"湾岸弥富IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"豊田松平IC", pref:"愛知", route:"東海環状自動車道"},
@@ -164,7 +164,6 @@ const TOLLGATE_MASTER = [
   {name:"四日市IC", pref:"三重", route:"東名阪自動車道"},
   {name:"鈴鹿IC", pref:"三重", route:"東名阪自動車道"},
   {name:"亀山IC", pref:"三重", route:"東名阪自動車道"},
-  {name:"亀山JCT", pref:"三重", route:"新名神高速道路"},
   {name:"菰野IC", pref:"三重", route:"新名神高速道路"},
   {name:"伊勢西IC", pref:"三重", route:"伊勢自動車道"},
   {name:"伊勢IC", pref:"三重", route:"伊勢自動車道"},
@@ -175,7 +174,6 @@ const TOLLGATE_MASTER = [
   {name:"調布IC", pref:"東京", route:"中央自動車道"},
   {name:"国立府中IC", pref:"東京", route:"中央自動車道"},
   {name:"八王子IC", pref:"東京", route:"中央自動車道"},
-  {name:"八王子JCT", pref:"東京", route:"圏央道"},
   {name:"あきる野IC", pref:"東京", route:"圏央道"},
   {name:"日の出IC", pref:"東京", route:"圏央道"},
   // 神奈川県
@@ -185,7 +183,6 @@ const TOLLGATE_MASTER = [
   {name:"秦野中井IC", pref:"神奈川", route:"東名高速道路"},
   {name:"大井松田IC", pref:"神奈川", route:"東名高速道路"},
   {name:"厚木南IC", pref:"神奈川", route:"新東名高速道路"},
-  {name:"伊勢原JCT", pref:"神奈川", route:"新東名高速道路"},
   {name:"相模原愛川IC", pref:"神奈川", route:"圏央道"},
   {name:"高尾山IC", pref:"神奈川", route:"圏央道"},
   {name:"城山IC", pref:"神奈川", route:"圏央道"},
@@ -216,8 +213,420 @@ const TOLLGATE_MASTER = [
   {name:"市原IC", pref:"千葉", route:"館山自動車道"},
   {name:"姉崎袖ケ浦IC", pref:"千葉", route:"館山自動車道"},
   {name:"木更津南IC", pref:"千葉", route:"館山自動車道"},
-  {name:"木更津JCT", pref:"千葉", route:"圏央道"},
-  {name:"東金JCT", pref:"千葉", route:"圏央道"},
+
+  // ===== 追加：東名高速道路（東京側の起点）=====
+  {name:"東京IC", pref:"東京", route:"東名高速道路"},
+
+  // ===== 追加：新東名高速道路（愛知県内・豊田東JCT）=====
+
+  // ===== 追加：伊勢湾岸自動車道（四日市～豊田、全区間）=====
+  {name:"湾岸長島IC", pref:"三重", route:"伊勢湾岸自動車道"},
+  {name:"湾岸桑名IC", pref:"三重", route:"伊勢湾岸自動車道"},
+  {name:"名港中央IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"名港東IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+  {name:"豊田南IC", pref:"愛知", route:"伊勢湾岸自動車道"},
+
+  // ===== 追加：東海環状自動車道（全区間／西回り新規開通区間は要確認）=====
+  {name:"土岐南多治見IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"可児御嵩IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"美濃加茂IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"関広見IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"大野神戸IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"大垣西IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"養老IC", pref:"岐阜", route:"東海環状自動車道"},
+  {name:"北勢IC", pref:"三重", route:"東海環状自動車道"},
+  {name:"大安IC", pref:"三重", route:"東海環状自動車道"},
+  {name:"東員IC", pref:"三重", route:"東海環状自動車道"},
+
+  // ===== 追加：圏央道（久喜白岡～あきる野、全区間）=====
+  {name:"久喜白岡IC", pref:"埼玉", route:"圏央道"},
+  {name:"圏央鶴ヶ島IC", pref:"埼玉", route:"圏央道"},
+  {name:"入間IC", pref:"埼玉", route:"圏央道"},
+  {name:"青梅IC", pref:"東京", route:"圏央道"},
+
+  // ===== 追加：関越自動車道（本庄児玉～大泉、全区間）=====
+  {name:"本庄児玉IC", pref:"埼玉", route:"関越自動車道"},
+  {name:"嵐山小川IC", pref:"埼玉", route:"関越自動車道"},
+
+  // ===== 追加：埼玉県内の高速道路網（東北道・外環道）=====
+  {name:"加須IC", pref:"埼玉", route:"東北自動車道"},
+  {name:"羽生IC", pref:"埼玉", route:"東北自動車道"},
+  {name:"和光IC", pref:"埼玉", route:"東京外環自動車道"},
+  {name:"戸田南IC", pref:"埼玉", route:"東京外環自動車道"},
+  {name:"川口西IC", pref:"埼玉", route:"東京外環自動車道"},
+  {name:"草加IC", pref:"埼玉", route:"東京外環自動車道"},
+  {name:"八潮南IC", pref:"埼玉", route:"東京外環自動車道"},
+  {name:"三郷南IC", pref:"埼玉", route:"東京外環自動車道"},
+
+  // ===== 追加：東京→神奈川県境付近 =====
+  {name:"東名川崎IC", pref:"神奈川", route:"東名高速道路"},
+  {name:"横浜青葉IC", pref:"神奈川", route:"東名高速道路"},
+  {name:"保土ヶ谷IC", pref:"神奈川", route:"横浜新道"},
+  // ===== 追加：首都高速道路・名古屋高速道路（公式データより, 2025-2026年時点）=====
+  // -- 首都高速１号羽田線 --
+  {name:"羽田上", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"羽田下", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"空港西", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"平和島本線", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"平和島上", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"平和島下", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"鈴ヶ森", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"勝島", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"芝浦下", pref:"東京", route:"首都高速１号羽田線"},
+  {name:"芝浦上", pref:"東京", route:"首都高速１号羽田線"},
+  // -- 首都高速都心環状線 --
+  {name:"汐留", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速八重洲線 --
+  {name:"汐留乗継所", pref:"東京", route:"首都高速八重洲線"},
+  // -- 首都高速都心環状線 --
+  {name:"銀座外", pref:"東京", route:"首都高速都心環状線"},
+  {name:"銀座内", pref:"東京", route:"首都高速都心環状線"},
+  {name:"京橋", pref:"東京", route:"首都高速都心環状線"},
+  {name:"宝町", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速１号上野線 --
+  {name:"本町上", pref:"東京", route:"首都高速１号上野線"},
+  {name:"本町下", pref:"東京", route:"首都高速１号上野線"},
+  {name:"上野", pref:"東京", route:"首都高速１号上野線"},
+  {name:"北上野本線", pref:"東京", route:"首都高速１号上野線"},
+  {name:"入谷", pref:"東京", route:"首都高速１号上野線"},
+  // -- 首都高速都心環状線 --
+  {name:"新富町", pref:"東京", route:"首都高速都心環状線"},
+  {name:"芝公園外", pref:"東京", route:"首都高速都心環状線"},
+  {name:"芝公園内", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速２号目黒線 --
+  {name:"天現寺", pref:"東京", route:"首都高速２号目黒線"},
+  {name:"目黒", pref:"東京", route:"首都高速２号目黒線"},
+  {name:"白金本線", pref:"東京", route:"首都高速２号目黒線"},
+  {name:"荏原", pref:"東京", route:"首都高速２号目黒線"},
+  {name:"戸越", pref:"東京", route:"首都高速２号目黒線"},
+  // -- 首都高速都心環状線 --
+  {name:"飯倉", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速中央環状線 --
+  {name:"西池袋", pref:"東京", route:"首都高速中央環状線"},
+  {name:"西池袋外", pref:"東京", route:"首都高速中央環状線"},
+  {name:"西池袋内", pref:"東京", route:"首都高速中央環状線"},
+  {name:"中野長者橋", pref:"東京", route:"首都高速中央環状線"},
+  {name:"初台南", pref:"東京", route:"首都高速中央環状線"},
+  {name:"富ヶ谷", pref:"東京", route:"首都高速中央環状線"},
+  {name:"五反田", pref:"東京", route:"首都高速中央環状線"},
+  {name:"中環大井南", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速都心環状線 --
+  {name:"霞が関外", pref:"東京", route:"首都高速都心環状線"},
+  {name:"霞が関内", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速３号渋谷線 --
+  {name:"高樹町", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"渋谷上", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"渋谷", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"渋谷下", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"池尻", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"三軒茶屋", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"用賀本線", pref:"東京", route:"首都高速３号渋谷線"},
+  {name:"用賀", pref:"東京", route:"首都高速３号渋谷線"},
+  // -- 首都高速都心環状線 --
+  {name:"江戸橋", pref:"東京", route:"首都高速都心環状線"},
+  {name:"呉服橋", pref:"東京", route:"首都高速都心環状線"},
+  {name:"北の丸", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速八重洲線 --
+  {name:"八重洲外", pref:"東京", route:"首都高速八重洲線"},
+  {name:"八重洲内", pref:"東京", route:"首都高速八重洲線"},
+  {name:"丸の内", pref:"東京", route:"首都高速八重洲線"},
+  {name:"常盤橋", pref:"東京", route:"首都高速八重洲線"},
+  // -- 首都高速都心環状線 --
+  {name:"神田橋外", pref:"東京", route:"首都高速都心環状線"},
+  {name:"神田橋内", pref:"東京", route:"首都高速都心環状線"},
+  {name:"代官町", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速４号新宿線 --
+  {name:"外苑上", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"外苑下", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"代々木", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"新宿", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"幡ヶ谷", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"初台", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"永福下", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"永福上", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"高井戸", pref:"東京", route:"首都高速４号新宿線"},
+  {name:"永福本線", pref:"東京", route:"首都高速４号新宿線"},
+  // -- 首都高速中央環状線 --
+  {name:"王子北", pref:"東京", route:"首都高速中央環状線"},
+  {name:"王子南", pref:"東京", route:"首都高速中央環状線"},
+  {name:"滝野川", pref:"東京", route:"首都高速中央環状線"},
+  {name:"新板橋", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速５号池袋線 --
+  {name:"美女木上", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"美女木下", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"戸田南", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"高島平", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"中台", pref:"東京", route:"首都高速５号池袋線"},
+  // -- 首都高速中央環状線 --
+  {name:"高松", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速５号池袋線 --
+  {name:"志村本線", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"板橋本町下", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"板橋本町上", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"北池袋", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"東池袋", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"護国寺", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"飯田橋", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"西神田", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"一ツ橋", pref:"東京", route:"首都高速５号池袋線"},
+  {name:"早稲田", pref:"東京", route:"首都高速５号池袋線"},
+  // -- 首都高速都心環状線 --
+  {name:"東銀座", pref:"東京", route:"首都高速都心環状線"},
+  {name:"白魚橋", pref:"東京", route:"首都高速都心環状線"},
+  {name:"白魚橋乗継所", pref:"東京", route:"首都高速都心環状線"},
+  // -- 首都高速埼玉大宮線 --
+  {name:"美女木下", pref:"埼玉", route:"首都高速埼玉大宮線"},
+  {name:"美女木上", pref:"埼玉", route:"首都高速埼玉大宮線"},
+  // -- 首都高速八重洲線 --
+  {name:"西銀座", pref:"東京", route:"首都高速八重洲線"},
+  {name:"西銀座乗継所", pref:"東京", route:"首都高速八重洲線"},
+  // -- 首都高速埼玉大宮線 --
+  {name:"浦和南本線", pref:"埼玉", route:"首都高速埼玉大宮線"},
+  {name:"浦和南", pref:"埼玉", route:"首都高速埼玉大宮線"},
+  {name:"浦和北", pref:"埼玉", route:"首都高速埼玉大宮線"},
+  {name:"与野", pref:"埼玉", route:"首都高速埼玉大宮線"},
+  // -- 首都高速埼玉新都心線 --
+  {name:"新都心西上", pref:"埼玉", route:"首都高速埼玉新都心線"},
+  {name:"新都心西下", pref:"埼玉", route:"首都高速埼玉新都心線"},
+  {name:"新都心上", pref:"埼玉", route:"首都高速埼玉新都心線"},
+  {name:"新都心下", pref:"埼玉", route:"首都高速埼玉新都心線"},
+  {name:"さいたま見沼", pref:"埼玉", route:"首都高速埼玉新都心線"},
+  // -- 首都高速湾岸線 --
+  {name:"臨海副都心", pref:"東京", route:"首都高速湾岸線"},
+  {name:"大井", pref:"東京", route:"首都高速湾岸線"},
+  {name:"大井南（西）", pref:"東京", route:"首都高速湾岸線"},
+  {name:"大井南（東）", pref:"東京", route:"首都高速湾岸線"},
+  {name:"大井本線", pref:"東京", route:"首都高速湾岸線"},
+  {name:"有明", pref:"東京", route:"首都高速湾岸線"},
+  {name:"新木場西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"新木場第一", pref:"東京", route:"首都高速湾岸線"},
+  {name:"新木場東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"新木場第二", pref:"東京", route:"首都高速湾岸線"},
+  {name:"葛西西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"葛西第一", pref:"東京", route:"首都高速湾岸線"},
+  {name:"葛西東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"葛西第二", pref:"東京", route:"首都高速湾岸線"},
+  {name:"舞浜", pref:"東京", route:"首都高速湾岸線"},
+  {name:"浦安第一", pref:"東京", route:"首都高速湾岸線"},
+  {name:"浦安西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"浦安第二", pref:"東京", route:"首都高速湾岸線"},
+  {name:"浦安東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"千鳥町", pref:"東京", route:"首都高速湾岸線"},
+  {name:"市川本線", pref:"東京", route:"首都高速湾岸線"},
+  {name:"空港中央東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"空港中央西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"湾岸環八", pref:"東京", route:"首都高速湾岸線"},
+  // -- 首都高速１０号晴海線 --
+  {name:"豊洲", pref:"東京", route:"首都高速１０号晴海線"},
+  {name:"晴海", pref:"東京", route:"首都高速１０号晴海線"},
+  // -- 首都高速６号向島線 --
+  {name:"ＴＣＡＴ", pref:"東京", route:"首都高速６号向島線"},
+  {name:"箱崎", pref:"東京", route:"首都高速６号向島線"},
+  {name:"浜町", pref:"東京", route:"首都高速６号向島線"},
+  {name:"清洲橋", pref:"東京", route:"首都高速６号向島線"},
+  {name:"駒形", pref:"東京", route:"首都高速６号向島線"},
+  {name:"向島第一", pref:"東京", route:"首都高速６号向島線"},
+  {name:"向島上", pref:"東京", route:"首都高速６号向島線"},
+  {name:"向島第二", pref:"東京", route:"首都高速６号向島線"},
+  {name:"向島下", pref:"東京", route:"首都高速６号向島線"},
+  {name:"堤通第一", pref:"東京", route:"首都高速６号向島線"},
+  {name:"堤通上", pref:"東京", route:"首都高速６号向島線"},
+  {name:"堤通第二", pref:"東京", route:"首都高速６号向島線"},
+  {name:"堤通下", pref:"東京", route:"首都高速６号向島線"},
+  // -- 首都高速中央環状線 --
+  {name:"小菅", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速６号三郷線 --
+  {name:"加平南", pref:"東京", route:"首都高速６号三郷線"},
+  {name:"加平上", pref:"東京", route:"首都高速６号三郷線"},
+  {name:"加平北", pref:"東京", route:"首都高速６号三郷線"},
+  {name:"加平下", pref:"東京", route:"首都高速６号三郷線"},
+  // -- 首都高速７号小松川線 --
+  {name:"錦糸町上", pref:"東京", route:"首都高速７号小松川線"},
+  {name:"錦糸町本線", pref:"東京", route:"首都高速７号小松川線"},
+  {name:"小松川", pref:"東京", route:"首都高速７号小松川線"},
+  {name:"小松川下", pref:"東京", route:"首都高速７号小松川線"},
+  {name:"錦糸町下", pref:"東京", route:"首都高速７号小松川線"},
+  {name:"一之江上", pref:"東京", route:"首都高速７号小松川線"},
+  {name:"一之江下", pref:"東京", route:"首都高速７号小松川線"},
+  // -- 首都高速中央環状線 --
+  {name:"中環小松川", pref:"東京", route:"首都高速中央環状線"},
+  {name:"中環小松川本線", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速９号深川線 --
+  {name:"福住", pref:"東京", route:"首都高速９号深川線"},
+  {name:"木場", pref:"東京", route:"首都高速９号深川線"},
+  {name:"枝川", pref:"東京", route:"首都高速９号深川線"},
+  {name:"塩浜", pref:"東京", route:"首都高速９号深川線"},
+  // -- 首都高速１１号台場線 --
+  {name:"台場", pref:"東京", route:"首都高速１１号台場線"},
+  // -- 首都高速川口線 --
+  {name:"東領家", pref:"埼玉", route:"首都高速川口線"},
+  {name:"新井宿", pref:"埼玉", route:"首都高速川口線"},
+  {name:"川口本線", pref:"埼玉", route:"首都高速川口線"},
+  {name:"安行", pref:"埼玉", route:"首都高速川口線"},
+  {name:"新郷下", pref:"埼玉", route:"首都高速川口線"},
+  {name:"新郷第一", pref:"埼玉", route:"首都高速川口線"},
+  {name:"新郷上", pref:"埼玉", route:"首都高速川口線"},
+  {name:"新郷第二", pref:"埼玉", route:"首都高速川口線"},
+  {name:"足立入谷", pref:"埼玉", route:"首都高速川口線"},
+  {name:"加賀", pref:"埼玉", route:"首都高速川口線"},
+  {name:"鹿浜橋", pref:"埼玉", route:"首都高速川口線"},
+  {name:"鹿浜橋第一", pref:"埼玉", route:"首都高速川口線"},
+  // -- 首都高速中央環状線 --
+  {name:"清新町", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速川口線 --
+  {name:"鹿浜橋第二", pref:"埼玉", route:"首都高速川口線"},
+  // -- 首都高速中央環状線 --
+  {name:"船堀橋", pref:"東京", route:"首都高速中央環状線"},
+  {name:"平井大橋", pref:"東京", route:"首都高速中央環状線"},
+  {name:"四つ木第一", pref:"東京", route:"首都高速中央環状線"},
+  {name:"四つ木内", pref:"東京", route:"首都高速中央環状線"},
+  {name:"四つ木第二", pref:"東京", route:"首都高速中央環状線"},
+  {name:"四つ木外", pref:"東京", route:"首都高速中央環状線"},
+  {name:"千住新橋第一", pref:"東京", route:"首都高速中央環状線"},
+  {name:"千住新橋外", pref:"東京", route:"首都高速中央環状線"},
+  {name:"千住新橋第二", pref:"東京", route:"首都高速中央環状線"},
+  {name:"千住新橋内", pref:"東京", route:"首都高速中央環状線"},
+  {name:"扇大橋第一", pref:"東京", route:"首都高速中央環状線"},
+  {name:"扇大橋外", pref:"東京", route:"首都高速中央環状線"},
+  {name:"扇大橋第二", pref:"東京", route:"首都高速中央環状線"},
+  {name:"扇大橋内", pref:"東京", route:"首都高速中央環状線"},
+  // -- 首都高速６号三郷線 --
+  {name:"八潮南上", pref:"東京", route:"首都高速６号三郷線"},
+  {name:"八潮南下", pref:"東京", route:"首都高速６号三郷線"},
+  {name:"八潮本線", pref:"東京", route:"首都高速６号三郷線"},
+  {name:"八潮", pref:"東京", route:"首都高速６号三郷線"},
+  // -- 首都高速神奈川１号横羽線 --
+  {name:"大師下", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"大師上", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"大師本線", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"浜川崎", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"浅田", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"汐入", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"生麦", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"子安上", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"子安下", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"守屋町", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"東神奈川上", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"東神奈川下", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"横浜駅東口", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"横浜公園", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"横浜公園下", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"横浜公園上", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"みなとみらい上", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  {name:"みなとみらい下", pref:"神奈川", route:"首都高速神奈川１号横羽線"},
+  // -- 首都高速湾岸線 --
+  {name:"浮島湾岸西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"浮島湾岸東", pref:"東京", route:"首都高速湾岸線"},
+  // -- 首都高速神奈川２号三ツ沢線 --
+  {name:"三ツ沢本線", pref:"神奈川", route:"首都高速神奈川２号三ツ沢線"},
+  {name:"横浜駅西口", pref:"神奈川", route:"首都高速神奈川２号三ツ沢線"},
+  {name:"三ツ沢", pref:"神奈川", route:"首都高速神奈川２号三ツ沢線"},
+  // -- 首都高速神奈川３号狩場線 --
+  {name:"山下町", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"新山下上", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"新山下第一", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"新山下下", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"新山下第二", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"石川町", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"阪東橋", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"花之木", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"永田", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  {name:"狩場本線", pref:"神奈川", route:"首都高速神奈川３号狩場線"},
+  // -- 首都高速湾岸線 --
+  {name:"本牧ふ頭", pref:"東京", route:"首都高速湾岸線"},
+  {name:"湾岸浮島本線", pref:"東京", route:"首都高速湾岸線"},
+  {name:"大黒ふ頭", pref:"東京", route:"首都高速湾岸線"},
+  {name:"三溪園東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"磯子", pref:"東京", route:"首都高速湾岸線"},
+  {name:"東扇島第一", pref:"東京", route:"首都高速湾岸線"},
+  {name:"東扇島西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"東扇島第二", pref:"東京", route:"首都高速湾岸線"},
+  {name:"東扇島東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"杉田西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"南本牧ふ頭東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"南本牧ふ頭西", pref:"東京", route:"首都高速湾岸線"},
+  {name:"湾岸浮島", pref:"東京", route:"首都高速湾岸線"},
+  {name:"浮島", pref:"東京", route:"首都高速湾岸線"},
+  // -- 首都高速神奈川６号川崎線 --
+  {name:"川崎浮島", pref:"神奈川", route:"首都高速神奈川６号川崎線"},
+  {name:"川崎浮島本線", pref:"神奈川", route:"首都高速神奈川６号川崎線"},
+  {name:"殿町", pref:"神奈川", route:"首都高速神奈川６号川崎線"},
+  // -- 首都高速湾岸線 --
+  {name:"三溪園", pref:"東京", route:"首都高速湾岸線"},
+  {name:"杉田第一", pref:"東京", route:"首都高速湾岸線"},
+  {name:"杉田第二", pref:"東京", route:"首都高速湾岸線"},
+  {name:"杉田東", pref:"東京", route:"首都高速湾岸線"},
+  {name:"鳥浜町本線", pref:"東京", route:"首都高速湾岸線"},
+  {name:"幸浦", pref:"東京", route:"首都高速湾岸線"},
+  // -- 首都高速横浜北線 --
+  {name:"横浜港北上", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"新横浜上", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"新横浜", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"新横浜下", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"馬場", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"馬場上", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"馬場下", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"岸谷生麦上", pref:"神奈川", route:"首都高速横浜北線"},
+  {name:"岸谷生麦下", pref:"神奈川", route:"首都高速横浜北線"},
+  // -- 首都高速横浜北西線 --
+  {name:"横浜港北下", pref:"神奈川", route:"首都高速横浜北西線"},
+  {name:"横浜港北", pref:"神奈川", route:"首都高速横浜北西線"},
+  {name:"首都横浜青葉", pref:"神奈川", route:"首都高速横浜北西線"},
+  // -- 名古屋高速41 --
+  {name:"東新町", pref:"愛知", route:"名古屋高速41"},
+  {name:"東別院", pref:"愛知", route:"名古屋高速41"},
+  {name:"名駅", pref:"愛知", route:"名古屋高速41"},
+  {name:"丸の内", pref:"愛知", route:"名古屋高速41"},
+  {name:"錦橋", pref:"愛知", route:"名古屋高速41"},
+  {name:"高辻", pref:"愛知", route:"名古屋高速41"},
+  {name:"呼続", pref:"愛知", route:"名古屋高速41"},
+  {name:"堀田", pref:"愛知", route:"名古屋高速41"},
+  {name:"笠寺", pref:"愛知", route:"名古屋高速41"},
+  {name:"星崎", pref:"愛知", route:"名古屋高速41"},
+  {name:"知多・大高", pref:"愛知", route:"名古屋高速41"},
+  {name:"名四連絡路", pref:"愛知", route:"名古屋高速41"},
+  {name:"山王", pref:"愛知", route:"名古屋高速41"},
+  {name:"六番南", pref:"愛知", route:"名古屋高速41"},
+  {name:"木場", pref:"愛知", route:"名古屋高速41"},
+  {name:"六番北", pref:"愛知", route:"名古屋高速41"},
+  {name:"港明", pref:"愛知", route:"名古屋高速41"},
+  {name:"船見", pref:"愛知", route:"名古屋高速41"},
+  {name:"東海新宝", pref:"愛知", route:"名古屋高速41"},
+  {name:"東海", pref:"愛知", route:"名古屋高速41"},
+  {name:"尾頭橋", pref:"愛知", route:"名古屋高速41"},
+  {name:"東海湾岸", pref:"愛知", route:"名古屋高速41"},
+  {name:"烏森", pref:"愛知", route:"名古屋高速41"},
+  {name:"黄金", pref:"愛知", route:"名古屋高速41"},
+  {name:"千音寺", pref:"愛知", route:"名古屋高速41"},
+  {name:"明道町", pref:"愛知", route:"名古屋高速41"},
+  {name:"鳥見町", pref:"愛知", route:"名古屋高速41"},
+  {name:"庄内通", pref:"愛知", route:"名古屋高速41"},
+  {name:"清須", pref:"愛知", route:"名古屋高速41"},
+  {name:"西春", pref:"愛知", route:"名古屋高速41"},
+  {name:"一宮南", pref:"愛知", route:"名古屋高速41"},
+  {name:"一宮東", pref:"愛知", route:"名古屋高速41"},
+  {name:"一宮中", pref:"愛知", route:"名古屋高速41"},
+  {name:"春日", pref:"愛知", route:"名古屋高速41"},
+  {name:"一宮西春", pref:"愛知", route:"名古屋高速41"},
+  {name:"一宮IC", pref:"愛知", route:"名古屋高速41"},
+  {name:"東片端", pref:"愛知", route:"名古屋高速41"},
+  {name:"黒川", pref:"愛知", route:"名古屋高速41"},
+  {name:"楠", pref:"愛知", route:"名古屋高速41"},
+  {name:"豊山南", pref:"愛知", route:"名古屋高速41"},
+  {name:"大山川", pref:"愛知", route:"名古屋高速41"},
+  {name:"豊山北", pref:"愛知", route:"名古屋高速41"},
+  {name:"堀の内", pref:"愛知", route:"名古屋高速41"},
+  {name:"小牧南", pref:"愛知", route:"名古屋高速41"},
+  {name:"小牧", pref:"愛知", route:"名古屋高速41"},
+  {name:"小牧北", pref:"愛知", route:"名古屋高速41"},
+  {name:"小牧ＩＣ", pref:"愛知", route:"名古屋高速41"},
+  {name:"吹上西", pref:"愛知", route:"名古屋高速41"},
+  {name:"春岡", pref:"愛知", route:"名古屋高速41"},
+  {name:"吹上東", pref:"愛知", route:"名古屋高速41"},
+  {name:"四谷", pref:"愛知", route:"名古屋高速41"},
+  {name:"高針", pref:"愛知", route:"名古屋高速41"},
+  {name:"白川", pref:"愛知", route:"名古屋高速41"},
+
 ];
 
 /* ============ ファジーマッチング ============ */
@@ -406,10 +815,15 @@ function beginListenName(){
       currentTop = candidates[0];
       renderDebug(candidates);
 
-      if(!currentTop || currentTop.score < 0.35){
-        el.statusText.innerHTML = `聞き取れましたが、候補が見つかりませんでした：<span class="heard">「${text}」</span><br>もう一度お試しください`;
+      const CONFIDENCE_THRESHOLD = 0.5;
+      if(!currentTop || currentTop.score < CONFIDENCE_THRESHOLD){
+        // マッチしなくても止めない：生データのまま「要確認」として即記録する
+        addLogEntry(text, mode, {needsReview:true});
+        el.statusText.innerHTML = `候補が見つからないため生データのまま記録しました：<span class="heard">「${text}」</span>（要確認）`;
         resetMicButton();
         phase = "idle";
+        speak("記録しました。要確認です");
+        currentTop = null;
         return;
       }
       askConfirm(currentTop, text);
@@ -462,10 +876,11 @@ function renderDebug(candidates){
   ).join("");
 }
 
-function addLogEntry(name, m){
+function addLogEntry(name, m, opts){
+  const needsReview = opts && opts.needsReview;
   const now = new Date();
   const timeStr = now.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  sessionLog.unshift({name, mode:m, time:timeStr});
+  sessionLog.unshift({name, mode:m, time:timeStr, needsReview: !!needsReview});
   renderLog();
 }
 
@@ -477,7 +892,7 @@ function renderLog(){
   }
   el.logList.innerHTML = sessionLog.map(item=>`
     <div class="log-item">
-      <div><span class="tag ${item.mode==='in'?'in':'out'}">${item.mode==='in'?'入口':'出口'}</span><span class="name">${item.name}</span></div>
+      <div><span class="tag ${item.mode==='in'?'in':'out'}">${item.mode==='in'?'入口':'出口'}</span><span class="name">${item.name}</span>${item.needsReview ? '<span class="tag" style="background:#fde68a;color:#92400e;margin-left:6px;">要確認</span>' : ''}</div>
       <div class="time">${item.time}</div>
     </div>
   `).join("");
