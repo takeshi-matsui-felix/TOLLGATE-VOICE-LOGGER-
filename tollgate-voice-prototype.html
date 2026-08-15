@@ -106,6 +106,11 @@
     <button class="ok" id="btnOk">OK（これで記録）</button>
     <button class="ng" id="btnNg">NG（言い直す）</button>
   </div>
+
+  <div class="confirm-row" id="sendRow" hidden>
+    <button class="ok" id="btnSendYes">送信する</button>
+    <button class="ng" id="btnSendNo">送信しない</button>
+  </div>
 </div>
 
 <div class="debug" id="debugPanel">
@@ -140,6 +145,22 @@ const TOLLGATE_MASTER = [
   {name:"大府IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"東海IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"弥富IC", pref:"愛知", route:"東名阪自動車道"},
+
+  // ===== 追加：知多半島道路・南知多道路・知多横断道路 =====
+  {name:"大高IC", pref:"愛知", route:"知多半島道路"},
+  {name:"大府西IC", pref:"愛知", route:"知多半島道路"},
+  {name:"大府東海IC", pref:"愛知", route:"知多半島道路"},
+  {name:"東浦知多IC", pref:"愛知", route:"知多半島道路"},
+  {name:"阿久比IC", pref:"愛知", route:"知多半島道路"},
+  {name:"半田中央IC", pref:"愛知", route:"知多半島道路"},
+  {name:"半田IC", pref:"愛知", route:"知多半島道路"},
+  {name:"武豊北IC", pref:"愛知", route:"南知多道路"},
+  {name:"武豊IC", pref:"愛知", route:"南知多道路"},
+  {name:"美浜IC", pref:"愛知", route:"南知多道路"},
+  {name:"南知多IC", pref:"愛知", route:"南知多道路"},
+  {name:"豊丘IC", pref:"愛知", route:"南知多道路"},
+  {name:"常滑IC", pref:"愛知", route:"知多横断道路"},
+  {name:"りんくうIC", pref:"愛知", route:"知多横断道路"},
   {name:"飛島IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"湾岸弥富IC", pref:"愛知", route:"伊勢湾岸自動車道"},
   {name:"豊田松平IC", pref:"愛知", route:"東海環状自動車道"},
@@ -728,6 +749,9 @@ const el = {
   confirmRow: document.getElementById("confirmRow"),
   btnOk: document.getElementById("btnOk"),
   btnNg: document.getElementById("btnNg"),
+  sendRow: document.getElementById("sendRow"),
+  btnSendYes: document.getElementById("btnSendYes"),
+  btnSendNo: document.getElementById("btnSendNo"),
   dbgRaw: document.getElementById("dbgRaw"),
   dbgTop: document.getElementById("dbgTop"),
   dbgCandidates: document.getElementById("dbgCandidates"),
@@ -818,12 +842,11 @@ function beginListenName(){
       const CONFIDENCE_THRESHOLD = 0.5;
       if(!currentTop || currentTop.score < CONFIDENCE_THRESHOLD){
         // マッチしなくても止めない：生データのまま「要確認」として即記録する
-        addLogEntry(text, mode, {needsReview:true});
+        const entry = addLogEntry(text, mode, {needsReview:true});
         el.statusText.innerHTML = `候補が見つからないため生データのまま記録しました：<span class="heard">「${text}」</span>（要確認）`;
         resetMicButton();
-        phase = "idle";
-        speak("記録しました。要確認です");
         currentTop = null;
+        askSendConfirm(entry);
         return;
       }
       askConfirm(currentTop, text);
@@ -849,12 +872,11 @@ el.btnNg.addEventListener("click", ()=>confirmNo());
 
 function confirmYes(){
   if(!currentTop) return;
-  addLogEntry(currentTop.name, mode);
+  const entry = addLogEntry(currentTop.name, mode);
   el.confirmRow.hidden = true;
   el.statusText.innerHTML = `記録しました：<span class="heard">${currentTop.name}</span>`;
-  phase = "idle";
-  speak("記録しました");
   currentTop = null;
+  askSendConfirm(entry);
 }
 
 function confirmNo(){
@@ -869,6 +891,89 @@ function resetMicButton(){
   el.micHint.textContent = "1回タップで開始、自動的に聞き取ります";
 }
 
+/* ============ 送信確認フロー ============
+   ※ 送信先（SEND_ENDPOINT）は未確定です。後で実際のエンドポイント
+      （Supabase Edge Function や Google Apps Script のURLなど）を
+      設定すれば、そのままデータ送信が有効になります。 */
+const SEND_ENDPOINT = ""; // 例: "https://xxxx.supabase.co/functions/v1/tollgate-log"
+
+async function askSendConfirm(entry){
+  phase = "asking_send";
+  el.confirmRow.hidden = true;
+  el.sendRow.hidden = false;
+  el.statusText.innerHTML = `<span class="heard">${entry.name}</span>を記録しました。データを送信しますか？`;
+  await speak("データを送信しますか？");
+  listenForSendAnswer();
+}
+
+function listenForSendAnswer(){
+  if(!SR) return; // 音声認識非対応環境ではボタンのみで操作
+  startRecognition(
+    (alternatives)=>{
+      const text = alternatives.join(" ");
+      const positive = /(はい|送信する|送信します|オーケー|OK|お願い)/i.test(text);
+      const negative = /(いいえ|送信しない|キャンセル|ノー|NO|やめ)/i.test(text);
+      if(positive && !negative){
+        doSend();
+      } else if(negative){
+        doNotSend();
+      } else {
+        // 判定できない場合はボタン操作を待つ（何もしない）
+        el.statusText.innerHTML = `聞き取れませんでした（「${text}」）。ボタンで選択してください`;
+      }
+    },
+    ()=>{ /* 認識失敗時はボタン操作を待つ */ }
+  );
+}
+
+el.btnSendYes.addEventListener("click", ()=>doSend());
+el.btnSendNo.addEventListener("click", ()=>doNotSend());
+
+async function doSend(){
+  const entry = sessionLog[0];
+  el.sendRow.hidden = true;
+  if(!entry){ phase = "idle"; return; }
+
+  if(!SEND_ENDPOINT){
+    // 送信先が未設定の間は、送信済みとして扱いローカルに留める
+    entry.sendStatus = "sent_local";
+    renderLog();
+    el.statusText.innerHTML = `送信しました（送信先が未設定のため、現在はローカル記録のみです）`;
+    await speak("送信しました");
+    phase = "idle";
+    return;
+  }
+
+  entry.sendStatus = "sending";
+  renderLog();
+  try{
+    const res = await fetch(SEND_ENDPOINT, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        name: entry.name, mode: entry.mode, time: entry.time,
+        needsReview: entry.needsReview
+      })
+    });
+    entry.sendStatus = res.ok ? "sent" : "failed";
+  }catch(e){
+    entry.sendStatus = "failed";
+  }
+  renderLog();
+  el.statusText.innerHTML = entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました（後で再送してください）";
+  await speak(entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました");
+  phase = "idle";
+}
+
+function doNotSend(){
+  const entry = sessionLog[0];
+  el.sendRow.hidden = true;
+  if(entry) entry.sendStatus = "not_sent";
+  renderLog();
+  el.statusText.textContent = "送信しませんでした。次の料金所をどうぞ";
+  phase = "idle";
+}
+
 function renderDebug(candidates){
   el.dbgTop.textContent = candidates[0] ? `${candidates[0].name}（score: ${candidates[0].score.toFixed(2)}）` : "-";
   el.dbgCandidates.innerHTML = candidates.map(c=>
@@ -880,8 +985,22 @@ function addLogEntry(name, m, opts){
   const needsReview = opts && opts.needsReview;
   const now = new Date();
   const timeStr = now.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  sessionLog.unshift({name, mode:m, time:timeStr, needsReview: !!needsReview});
+  const entry = {name, mode:m, time:timeStr, needsReview: !!needsReview, sendStatus:"unsent"};
+  sessionLog.unshift(entry);
   renderLog();
+  return entry;
+}
+
+function sendStatusBadge(status){
+  const map = {
+    unsent: "",
+    not_sent: '<span class="tag" style="background:#e5e7eb;color:#374151;margin-left:6px;">未送信</span>',
+    sending: '<span class="tag" style="background:#dbeafe;color:#1e40af;margin-left:6px;">送信中…</span>',
+    sent_local: '<span class="tag" style="background:#dbeafe;color:#1e40af;margin-left:6px;">送信済（ローカル）</span>',
+    sent: '<span class="tag" style="background:#d1fae5;color:#065f46;margin-left:6px;">送信済</span>',
+    failed: '<span class="tag" style="background:#fee2e2;color:#991b1b;margin-left:6px;">送信失敗</span>',
+  };
+  return map[status] || "";
 }
 
 function renderLog(){
@@ -892,7 +1011,7 @@ function renderLog(){
   }
   el.logList.innerHTML = sessionLog.map(item=>`
     <div class="log-item">
-      <div><span class="tag ${item.mode==='in'?'in':'out'}">${item.mode==='in'?'入口':'出口'}</span><span class="name">${item.name}</span>${item.needsReview ? '<span class="tag" style="background:#fde68a;color:#92400e;margin-left:6px;">要確認</span>' : ''}</div>
+      <div><span class="tag ${item.mode==='in'?'in':'out'}">${item.mode==='in'?'入口':'出口'}</span><span class="name">${item.name}</span>${item.needsReview ? '<span class="tag" style="background:#fde68a;color:#92400e;margin-left:6px;">要確認</span>' : ''}${sendStatusBadge(item.sendStatus)}</div>
       <div class="time">${item.time}</div>
     </div>
   `).join("");
