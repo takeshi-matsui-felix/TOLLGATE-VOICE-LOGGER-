@@ -1052,7 +1052,8 @@ async function doSend(){
       headers: {
         "Content-Type":"application/json",
         "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        // 新形式のpublishable key（sb_publishable_...）はJWTではないため、
+        // Authorization: Bearer には使えない（apikeyヘッダーのみで送る）
         "Prefer": "return=minimal"
       },
       body: JSON.stringify({
@@ -1069,12 +1070,21 @@ async function doSend(){
       })
     });
     entry.sendStatus = res.ok ? "sent" : "failed";
+    if(!res.ok){
+      const bodyText = await res.text().catch(()=>"(本文取得失敗)");
+      entry.sendError = `HTTP ${res.status}: ${bodyText}`;
+      el.dbgRaw.textContent = entry.sendError; // デバッグパネルに詳細を表示
+    }
   }catch(e){
     entry.sendStatus = "failed";
+    entry.sendError = `通信エラー: ${e.message}`;
+    el.dbgRaw.textContent = entry.sendError;
   }
   renderLog();
   saveSession();
-  el.statusText.innerHTML = entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました（後で再送してください）";
+  el.statusText.innerHTML = entry.sendStatus === "sent"
+    ? "送信しました"
+    : `送信に失敗しました（詳細:下のデバッグ欄参照）`;
   await speak(entry.sendStatus === "sent" ? "送信しました" : "送信に失敗しました");
   phase = "idle";
 }
