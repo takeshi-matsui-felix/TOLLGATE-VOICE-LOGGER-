@@ -951,7 +951,7 @@ function detectPlatform(){
 
 // 各OSでSpeechRecognition.start()が実際に「聞こえ始める」までの
 // 起動ラグの目安（ミリ秒）。ここを起点に「ぎりぎり」を攻める。
-const MIC_START_LAG_MS = { ios: 250, android: 250, other: 350 };
+const MIC_START_LAG_MS = { ios: -50, android: 250, other: 350 };
 
 function primeRecognition(){
   if(!SR) return;
