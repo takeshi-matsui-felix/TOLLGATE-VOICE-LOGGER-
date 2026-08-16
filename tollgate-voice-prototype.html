@@ -318,6 +318,40 @@ const TOLLGATE_MASTER = [
   {name:"東名川崎IC", pref:"神奈川", route:"東名高速道路"},
   {name:"横浜青葉IC", pref:"神奈川", route:"東名高速道路"},
   {name:"保土ヶ谷IC", pref:"神奈川", route:"横浜新道"},
+
+  // ===== 追加：東名高速道路 全線（神奈川〜静岡区間、いじわる問題対応）=====
+  {name:"足柄スマートIC", pref:"神奈川", route:"東名高速道路"},
+  {name:"御殿場IC", pref:"静岡", route:"東名高速道路"},
+  {name:"駒門スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"裾野IC", pref:"静岡", route:"東名高速道路"},
+  {name:"沼津IC", pref:"静岡", route:"東名高速道路"},
+  {name:"愛鷹スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"富士IC", pref:"静岡", route:"東名高速道路"},
+  {name:"富士川スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"清水IC", pref:"静岡", route:"東名高速道路"},
+  {name:"日本平久能山スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"静岡IC", pref:"静岡", route:"東名高速道路"},
+  {name:"焼津IC", pref:"静岡", route:"東名高速道路"},
+  {name:"大井川焼津藤枝スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"吉田IC", pref:"静岡", route:"東名高速道路"},
+  {name:"相良牧之原IC", pref:"静岡", route:"東名高速道路"},
+  {name:"菊川IC", pref:"静岡", route:"東名高速道路"},
+  {name:"掛川IC", pref:"静岡", route:"東名高速道路"},
+  {name:"袋井IC", pref:"静岡", route:"東名高速道路"},
+  {name:"磐田IC", pref:"静岡", route:"東名高速道路"},
+  {name:"遠州豊田スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"浜松IC", pref:"静岡", route:"東名高速道路"},
+  {name:"三方原スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"浜松西IC", pref:"静岡", route:"東名高速道路"},
+  {name:"舘山寺スマートIC", pref:"静岡", route:"東名高速道路"},
+  {name:"三ケ日IC", pref:"静岡", route:"東名高速道路"},
+  {name:"豊橋新城スマートIC", pref:"愛知", route:"東名高速道路"},
+  {name:"岡崎北スマートIC", pref:"愛知", route:"東名高速道路"},
+  {name:"豊田上郷スマートIC", pref:"愛知", route:"東名高速道路"},
+  {name:"東名三好IC", pref:"愛知", route:"東名高速道路"},
+  {name:"守山スマートIC", pref:"愛知", route:"東名高速道路"},
+  {name:"春日井IC", pref:"愛知", route:"東名高速道路"},
+
   // ===== 追加：首都高速道路・名古屋高速道路（公式データより, 2025-2026年時点）=====
   // -- 首都高速１号羽田線 --
   {name:"羽田上", pref:"東京", route:"首都高速１号羽田線"},
@@ -893,6 +927,32 @@ function startRecognition(onResult, onFail){
 /* iOSでは「ユーザー操作の直後」でないと音声認識の起動が拒否されることがある。
    ボタンタップ等のジェスチャー直後に一瞬だけ起動→即停止しておくことで、
    その後（読み上げが終わった後など）に本番の認識を開始しやすくする対策。 */
+/* ============ 読み上げ時間の推定 & 端末別マイク起動ラグの見積もり ============
+   speak()のonend（読み上げ完了イベント）を律儀に待つと、そこからさらに
+   マイクの起動処理（OS側の初期化）が挟まるため、体感の「間」が伸びてしまう。
+   そこで、読み上げにかかるおおよその時間をテキスト量から逆算し、
+   「読み上げが終わるはずのタイミングよりも、マイク起動ラグの分だけ早く」
+   マイクの起動を仕込んでおくことで、体感の遅延を最小化する。 */
+function estimateSpeechDurationMs(text){
+  const CHARS_PER_SEC_AT_RATE1 = 7.2; // 日本語音声合成のおおよその発話速度（rate=1.0時の目安）
+  const rate = 1.02; // speak()関数のutterance.rateと合わせる
+  const charsPerSec = CHARS_PER_SEC_AT_RATE1 * rate;
+  const speakingMs = (text.length / charsPerSec) * 1000;
+  const trailingPauseMs = 120; // 文末の間（ポーズ）の目安
+  return speakingMs + trailingPauseMs;
+}
+
+function detectPlatform(){
+  const ua = (navigator.userAgent || "").toLowerCase();
+  if(/iphone|ipad|ipod/.test(ua)) return "ios";
+  if(/android/.test(ua)) return "android";
+  return "other";
+}
+
+// 各OSでSpeechRecognition.start()が実際に「聞こえ始める」までの
+// 起動ラグの目安（ミリ秒）。ここを起点に「ぎりぎり」を攻める。
+const MIC_START_LAG_MS = { ios: 450, android: 250, other: 350 };
+
 function primeRecognition(){
   if(!SR) return;
   try{
@@ -907,11 +967,18 @@ function primeRecognition(){
 }
 
 /* 「読み上げる→終わったら聞く→はい/いいえを判定する」を一本化した共通関数。
-   読み上げ中は聞き取りを開始しないため、読み上げ音声を自分で拾ってしまう
-   （ハウリング的な誤認識）問題を避けられる。ボタンでの操作も並行して有効。 */
+   読み上げのonendを待つのではなく、推定発話時間からマイク起動ラグを差し引いた
+   タイミングでマイクの起動を仕込んでおくことで、体感の遅延を最小化する。
+   （ユーザー許容：読み上げ音声とマイクが1秒未満重なるのは許容範囲とする） */
 function voiceConfirm(promptText, {onYes, onNo, onUnclear} = {}){
   primeRecognition(); // ジェスチャー直後にAPIを一度解放しておく
-  speak(promptText).then(()=>{
+  speak(promptText); // onendは待たない（fire-and-forget）
+
+  const estDuration = estimateSpeechDurationMs(promptText);
+  const micLag = MIC_START_LAG_MS[detectPlatform()] || MIC_START_LAG_MS.other;
+  const startDelay = Math.max(0, estDuration - micLag);
+
+  setTimeout(()=>{
     if(!SR) return; // 非対応環境ではボタン操作のみで完結
     startRecognition(
       (alternatives)=>{
@@ -928,7 +995,7 @@ function voiceConfirm(promptText, {onYes, onNo, onUnclear} = {}){
       },
       ()=>{ /* 認識失敗時はボタン操作を待つ */ }
     );
-  });
+  }, startDelay);
 }
 
 el.micBtn.addEventListener("click", ()=>{
