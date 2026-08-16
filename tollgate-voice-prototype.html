@@ -772,6 +772,7 @@ function findBestAcrossAlternatives(alternativeTexts){
 const STORAGE_KEY = "tollgate_voice_logger_session_v1";
 let mode = "in";
 let tripState = null; // null: 次は入口を期待 / "in": 入口記録済み、次は出口を期待
+let currentTripId = null; // 1往復（入口〜出口）ごとに発行するID。session_idとは別物。
 let recognition = null;
 let recognizing = false;
 let phase = "idle"; // idle | listening_name | confirming | asking_send
@@ -901,7 +902,7 @@ function primeRecognition(){
     r.onend = ()=>{};
     r.onresult = ()=>{};
     r.start();
-    setTimeout(()=>{ try{ r.stop(); }catch(e){} }, 30);
+    setTimeout(()=>{ try{ r.stop(); }catch(e){} }, 0); // 待機を最小化
   }catch(e){ /* 対応環境でなければ無視 */ }
 }
 
@@ -962,12 +963,17 @@ function beginListenName(){
       if(!currentTop || currentTop.score < CONFIDENCE_THRESHOLD){
         // マッチしなくても止めない：生データのまま「要確認」として即記録する
         const wasMode = mode;
-        const entry = addLogEntry(text, wasMode, {needsReview:true});
+        if(wasMode === "in"){
+          currentTripId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        }
+        const tripIdForThisEntry = currentTripId;
+        const entry = addLogEntry(text, wasMode, {needsReview:true, tripId: tripIdForThisEntry});
         el.statusText.innerHTML = `候補が見つからないため生データのまま記録しました：<span class="heard">「${text}」</span>（要確認）`;
         resetMicButton();
         currentTop = null;
         advanceTripState();
         if(wasMode === "out"){
+          currentTripId = null; // 一往復が完結したのでリセット
           askSendConfirm(entry);
         } else {
           phase = "idle";
@@ -1005,8 +1011,11 @@ el.btnNg.addEventListener("click", ()=>confirmNo());
 function confirmYes(){
   if(!currentTop) return;
   const wasMode = mode;
+  if(wasMode === "in"){
+    currentTripId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  }
   const entry = addLogEntry(currentTop.name, wasMode, {
-    route: currentTop.route, pref: currentTop.pref, rawText: currentHeardText
+    route: currentTop.route, pref: currentTop.pref, rawText: currentHeardText, tripId: currentTripId
   });
   el.confirmRow.hidden = true;
   el.statusText.innerHTML = `記録しました：<span class="heard">${currentTop.name}</span>`;
@@ -1014,6 +1023,7 @@ function confirmYes(){
   currentHeardText = null;
   advanceTripState();
   if(wasMode === "out"){
+    currentTripId = null; // 一往復が完結したのでリセット
     // 出口が記録できた＝一往復分そろったタイミングでのみ送信確認を行う
     askSendConfirm(entry);
   } else {
@@ -1102,6 +1112,7 @@ async function sendEntryToSupabase(entry){
         needs_review: !!entry.needsReview,
         recorded_at: entry.recordedAt,
         session_id: getSessionId(),
+        trip_id: entry.tripId,
       })
     });
     entry.sendStatus = res.ok ? "sent" : "failed";
@@ -1174,6 +1185,7 @@ function addLogEntry(name, m, opts){
     pref: opts.pref || null,
     rawText: opts.rawText || name,
     recordedAt: now.toISOString(),
+    tripId: opts.tripId || null,
   };
   sessionLog.unshift(entry);
   renderLog();
@@ -1221,7 +1233,7 @@ function getSessionId(){
 function saveSession(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      sessionLog, mode, tripState, sessionId: getSessionId(), savedAt: Date.now()
+      sessionLog, mode, tripState, currentTripId, sessionId: getSessionId(), savedAt: Date.now()
     }));
   }catch(e){ /* ストレージが使えない環境では無視 */ }
 }
@@ -1234,6 +1246,7 @@ function loadSession(){
     if(Array.isArray(data.sessionLog)) sessionLog = data.sessionLog;
     if(data.mode) mode = data.mode;
     if("tripState" in data) tripState = data.tripState;
+    if("currentTripId" in data) currentTripId = data.currentTripId;
     if(data.sessionId) sessionId = data.sessionId;
   }catch(e){ /* 壊れたデータは無視して新規セッションとして開始 */ }
 }
@@ -1242,6 +1255,7 @@ function clearSession(){
   sessionLog = [];
   mode = "in";
   tripState = null;
+  currentTripId = null;
   sessionId = null; // 次回の記録から新しいセッションIDを発行する
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
   setMode("in");
